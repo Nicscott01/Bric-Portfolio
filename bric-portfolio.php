@@ -24,7 +24,7 @@ class BricPortfolio {
 		
 		$this->name = 'portfolio';	
 		$this->slug = 'portfolio';
-		$this->template_part = 'gallery';
+		$this->template_part = 'portfolio';
 		$this->includes = __DIR__.'/includes';
 		
 		//Setup the options
@@ -46,7 +46,7 @@ class BricPortfolio {
 
 		
 		//Set content template file
-		add_action( 'wp', array( $this, 'set_content_template') );
+		add_filter( 'bric_content_template', array( $this, 'set_content_template'), 10, 2 );
 		
 	
 	
@@ -75,9 +75,34 @@ class BricPortfolio {
 		
 		
 		
+		//Options for post type
+		add_action( 'init', [ $this, 'options_page' ] );
+		
 		
 	}
 				   
+	
+	
+	public function options_page() {
+		
+		
+		if ( function_exists( 'get_field' ) ) {
+			
+
+			acf_add_options_page( [ 
+				'page_title' => 'Settings',
+				'parent_slug' => 'edit.php?post_type=portfolio',
+			]);
+	
+		}
+
+	
+	}
+	
+	
+	
+	
+	
 	
 	
 	/**
@@ -307,33 +332,32 @@ class BricPortfolio {
 	
 	
 	
-	public function set_content_template() {
+	public function set_content_template( $content_part, $BricLoop ) {
 		
-		global $BricLoop;
 		
 		if ( get_post_type() == 'portfolio' && is_single() ) {
 		
 
-			$this->template_location = locate_template( 'template-parts/' . $this->template_part, false );
 
-
+			$this->template_location = locate_template( 'content-' . $this->template_part .'.php', false );
+			
+						
 			//We don't have a template so, lets load the plugin's
 			if ( empty( $this->template_location ) ) {
 
 				add_filter( 'the_content', [ $this, 'get_content' ] );
 
-				//remove_action( 'bric_loop', [$BricLoop, 'get_content'], 10 );
-				//add_action( 'bric_loop', [ $this, 'get_content'], 10 );
-
 
 			}
 			else {
 				
-				$BricLoop->contentTemplate = $this->template_part;
-
+				$content_part = $this->template_part;
+				
 			}
 
 		}
+		
+		return $content_part;
 		
 	}
 	
@@ -365,13 +389,28 @@ class BricPortfolio {
 	
 	// Register Custom Post Type
 	function register_post_type() {
+		
+		
+		//
+		// 	Get Options
+		//
+		
+		$label = get_field( 'portfolio_label', 'option' );
+		$slug = get_field( 'portfolio_slug', 'option' );
+		
+		
+		$label = ( empty( $label ) ) ? 'Portfolio' : $label;
+		$slug = ( empty( $slug )) ? $this->slug : $slug;
+		
+		
+		
 
 		$labels = array(
-			'name'                  => _x( 'Portfolio', 'Post Type General Name', 'text_domain' ),
-			'singular_name'         => _x( 'Portfolio', 'Post Type Singular Name', 'text_domain' ),
-			'menu_name'             => __( 'Portfolio', 'text_domain' ),
-			'name_admin_bar'        => __( 'Portfolio', 'text_domain' ),
-			'archives'              => __( 'Portfolio', 'text_domain' ),
+			'name'                  => _x( $label, 'Post Type General Name', 'text_domain' ),
+			'singular_name'         => _x( $label, 'Post Type Singular Name', 'text_domain' ),
+			'menu_name'             => __( $label, 'text_domain' ),
+			'name_admin_bar'        => __( $label, 'text_domain' ),
+			'archives'              => __( $label, 'text_domain' ),
 			'attributes'            => __( 'Item Attributes', 'text_domain' ),
 			'parent_item_colon'     => __( 'Parent Item:', 'text_domain' ),
 			'all_items'             => __( 'All Items', 'text_domain' ),
@@ -396,14 +435,14 @@ class BricPortfolio {
 			'filter_items_list'     => __( 'Filter items list', 'text_domain' ),
 		);
 		$rewrite = array(
-			'slug'                  => $this->slug,
+			'slug'                  => $slug,
 			'with_front'            => false,
 			'pages'                 => true,
 			'feeds'                 => true,
 		);
 		$args = array(
-			'label'                 => __( 'Portfolio', 'text_domain' ),
-			'description'           => __( 'Portfolio area', 'text_domain' ),
+			'label'                 => __( $label, 'text_domain' ),
+			'description'           => __( $lable . ' area', 'text_domain' ),
 			'labels'                => $labels,
 			'supports'              => array( 'title', 'editor', 'thumbnail', 'revisions','page-attributes' ),
 			'taxonomies'            => array( 'category', 'post_tag' ),
@@ -421,6 +460,7 @@ class BricPortfolio {
 			'publicly_queryable'    => true,
 			'rewrite'               => $rewrite,
 			'capability_type'       => 'post',
+			'show_in_rest'			=> true,
 		);
 		register_post_type( $this->name, $args );
 
